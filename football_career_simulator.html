@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Football Career Simulator</title>
+  <style>
+    :root {
+      --bg: #0a0f1f;
+      --panel: #121a2f;
+      --panel-2: #1b2645;
+      --accent: #00d18f;
+      --accent-2: #4cc9f0;
+      --text: #e8edf7;
+      --muted: #9fb0d0;
+      --danger: #f25f5c;
+      --warn: #f4a261;
+      --gold: #f6c453;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, #17264f 0, #0a0f1f 45%, #070b14 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app { max-width: 1400px; margin: 0 auto; padding: 16px; }
+    .header {
+      display:flex; justify-content:space-between; align-items:center;
+      background: linear-gradient(135deg, #16284e, #101a32);
+      border:1px solid #2d3f6c; border-radius:14px; padding:14px 18px; box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .title { font-size: 1.3rem; font-weight: 700; letter-spacing:.3px; }
+    .subtle { color: var(--muted); font-size: .9rem; }
+
+    .grid { display:grid; gap:14px; }
+    .main-grid { grid-template-columns: 320px 1fr; }
+    .panel {
+      background: linear-gradient(180deg, #121a2f, #10172a);
+      border: 1px solid #293a62; border-radius:14px; padding:14px;
+      box-shadow: var(--shadow);
+    }
+    .panel h3 { margin:0 0 10px; font-size:1rem; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .col { display:flex; flex-direction:column; gap:8px; }
+    label { font-size: .8rem; color: var(--muted); }
+    input, select, button {
+      background: #0d152a; color: var(--text); border:1px solid #354b79; border-radius:10px;
+      padding:9px 10px; font-size:.92rem;
+    }
+    button {
+      cursor:pointer;
+      background: linear-gradient(135deg, #1b3667, #21458a);
+      transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+      border-color:#4563a0;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(1.07); box-shadow: 0 0 0 2px rgba(76,201,240,.2); }
+    button.primary { background: linear-gradient(135deg, #0e9f74, #00d18f); color:#05131e; border-color:#50f4be; font-weight:700; }
+    button.warn { background: linear-gradient(135deg, #d17f3e, #f4a261); color:#291c0b; border-color:#ffc08f; }
+    button.danger { background: linear-gradient(135deg, #b54343, #f25f5c); color:#2a0f12; border-color:#ff9896; }
+    .pill { padding:5px 9px; border-radius:999px; background:#16213f; border:1px solid #2f4673; font-size:.76rem; }
+
+    .cards { display:grid; grid-template-columns: repeat(2, minmax(220px,1fr)); gap:10px; }
+    .card {
+      background: linear-gradient(165deg, #16213f, #111a30); border:1px solid #2d426f;
+      border-radius:12px; padding:10px;
+    }
+    .big { font-size: 1.45rem; font-weight:700; color: var(--accent-2); }
+    .list { max-height: 250px; overflow:auto; border:1px solid #2a3f6d; border-radius:10px; padding:8px; background:#0b1226; }
+    .list table { width:100%; border-collapse: collapse; }
+    .list th, .list td { padding:4px 6px; text-align:left; font-size:.82rem; border-bottom:1px solid #1f2f52; }
+    .list th { position: sticky; top:0; background:#101a34; }
+
+    .overlay {
+      background: linear-gradient(170deg, rgba(5,9,20,.97), rgba(13,20,38,.97));
+      border:1px solid #334b79; border-radius: 14px; padding: 12px;
+    }
+    .commentary {
+      height: 190px; overflow:auto; border:1px solid #2d4069; border-radius:10px; padding:8px;
+      background: repeating-linear-gradient(180deg,#101935,#101935 26px,#0f1730 26px,#0f1730 52px);
+      font-size:.86rem;
+    }
+    .commentary div { margin-bottom:6px; }
+    .positive { color: var(--accent); }
+    .negative { color: var(--danger); }
+    .gold { color: var(--gold); }
+
+    .attr-grid { display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center; }
+    .bar { width: 100%; height:10px; border-radius:8px; background:#22345b; overflow:hidden; }
+    .bar > i { display:block; height:100%; background: linear-gradient(90deg,#1dd8a4,#4cc9f0); }
+
+    .screen { display:none; }
+    .screen.active { display:block; animation: fade .25s ease; }
+    @keyframes fade { from {opacity:0; transform: translateY(5px);} to {opacity:1; transform:none;} }
+
+    @media (max-width: 1020px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">⚽ Football Career Simulator</div>
+        <div class="subtle" id="seasonLabel">Season: -</div>
+      </div>
+      <div class="row">
+        <span class="pill" id="autosaveStatus">Auto-save ready</span>
+        <button id="saveBtn">Save</button>
+        <button id="newCareerBtn" class="warn">New Career</button>
+      </div>
+    </div>
+
+    <div id="setupScreen" class="screen active panel">
+      <h3>Career Setup</h3>
+      <div class="row" style="margin-bottom:10px;">
+        <button id="modeCustom" class="primary">Custom Player</button>
+        <button id="modeKnown">Known Player / Legend</button>
+      </div>
+      <div class="grid" style="grid-template-columns: repeat(3,minmax(170px,1fr));" id="setupFields"></div>
+      <div class="row" style="margin-top:12px;">
+        <button id="startCareer" class="primary">Start Career</button>
+      </div>
+    </div>
+
+    <div id="gameScreen" class="screen">
+      <div class="grid main-grid">
+        <div class="col">
+          <div class="panel">
+            <h3>Player Profile</h3>
+            <div class="cards">
+              <div class="card"><div class="subtle">Name</div><div id="pName" class="big">-</div></div>
+              <div class="card"><div class="subtle">OVR</div><div id="pOvr" class="big">-</div></div>
+              <div class="card"><div class="subtle">Age / Position</div><div id="pAgePos" class="big">-</div></div>
+              <div class="card"><div class="subtle">Club</div><div id="pClub" class="big">-</div></div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <span class="pill" id="trustPill">Trust 0</span>
+              <span class="pill" id="mediaPill">Media 0</span>
+              <span class="pill" id="moralePill">Morale 0</span>
+              <span class="pill" id="injuryPill">Fit</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>Actions</h3>
+            <div class="col">
+              <button id="playNextBtn" class="primary">Play / Sim Next Matchday</button>
+              <button id="trainBtn">Weekly Training</button>
+              <button id="devBtn">Open Development</button>
+              <button id="transferBtn">Transfer Market</button>
+              <button id="awardsBtn">Awards & Legacy</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>Calendar</h3>
+            <div id="calendarInfo" class="subtle">-</div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="panel">
+            <h3>Match Broadcast Overlay</h3>
+            <div id="matchPanel" class="overlay">
+              <div class="row" style="justify-content:space-between; align-items:center;">
+                <div id="fixtureLabel">No match yet</div>
+                <div id="scoreLabel" class="big" style="font-size:1.1rem;">-</div>
+              </div>
+              <div class="commentary" id="commentary"></div>
+              <div id="matchSummary" class="subtle" style="margin-top:8px;">Play next match to generate decisions and commentary.</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>League Table</h3>
+            <div class="list" id="tableWrap"></div>
+          </div>
+
+          <div class="panel">
+            <h3>Career Stats</h3>
+            <div class="cards" id="statsCards"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="devScreen" class="screen panel">
+      <h3>Player Development</h3>
+      <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+        <div>OVR: <span class="big" id="devOvr">0</span></div>
+        <div>Dev Points: <span class="big" id="devPts">0</span></div>
+      </div>
+      <div id="attrList" class="col"></div>
+      <div class="row" style="margin-top:10px;"><button id="closeDev" class="primary">Back</button></div>
+    </div>
+
+    <div id="transferScreen" class="screen panel">
+      <h3>Transfer Market</h3>
+      <div id="transferList" class="list"></div>
+      <div class="row" style="margin-top:10px;"><button id="closeTransfer" class="primary">Back</button></div>
+    </div>
+
+    <div id="awardsScreen" class="screen panel">
+      <h3>Awards, Records & Hall of Fame</h3>
+      <div id="awardsBody" class="list" style="max-height:460px;"></div>
+      <div class="row" style="margin-top:10px;"><button id="closeAwards" class="primary">Back</button></div>
+    </div>
+  </div>
+
+  <script>
+    const SAVE_KEY = 'footballCareerSimulator_v1';
+    const LEAGUES = ['Premier League','La Liga','Serie A','Bundesliga','Ligue 1'];
+    const POSITIONS = ['ST','LW','RW','CAM','CM','CDM','CB','LB','RB','GK'];
+
+    const REAL_PLAYERS = [
+      {name:'Kylian Mbappé', age:27, nationality:'France', position:'ST', club:'Real Madrid', legend:false},
+      {name:'Erling Haaland', age:26, nationality:'Norway', position:'ST', club:'Man City', legend:false},
+      {name:'Jude Bellingham', age:23, nationality:'England', position:'CM', club:'Real Madrid', legend:false},
+      {name:'Kevin De Bruyne', age:35, nationality:'Belgium', position:'CM', club:'Man City', legend:false},
+      {name:'Lionel Messi', age:39, nationality:'Argentina', position:'RW', club:'Inter Miami', legend:true},
+      {name:'Cristiano Ronaldo', age:41, nationality:'Portugal', position:'ST', club:'Al Nassr', legend:true},
+      {name:'Zinedine Zidane', age:53, nationality:'France', position:'CAM', club:'Legend XI', legend:true},
+      {name:'Ronaldinho', age:46, nationality:'Brazil', position:'CAM', club:'Legend XI', legend:true}
+    ];
+
+    const TEAM_NAMES = {
+      'Premier League': ['Arsenal','Aston Villa','Bournemouth','Brentford','Brighton','Chelsea','Crystal Palace','Everton','Fulham','Ipswich','Leicester','Liverpool','Man City','Man United','Newcastle','Nottingham','Southampton','Tottenham','West Ham','Wolves'],
+      'La Liga': ['Real Madrid','Barcelona','Atletico Madrid','Sevilla','Valencia','Villarreal','Real Sociedad','Real Betis','Athletic Club','Getafe','Girona','Osasuna','Las Palmas','Mallorca','Alaves','Celta Vigo','Rayo Vallecano','Cadiz','Granada','Espanyol'],
+      'Serie A': ['Inter','Milan','Juventus','Napoli','Roma','Lazio','Atalanta','Fiorentina','Torino','Bologna','Udinese','Sassuolo','Monza','Empoli','Verona','Cagliari','Parma','Genoa','Lecce','Como'],
+      'Bundesliga': ['Bayern','Dortmund','Leipzig','Leverkusen','Frankfurt','Stuttgart','Wolfsburg','Gladbach','Freiburg','Hoffenheim','Mainz','Union Berlin','Augsburg','Bremen','Bochum','Koln','Heidenheim','Hamburg','St Pauli','Nurnberg'],
+      'Ligue 1': ['PSG','Marseille','Lyon','Monaco','Lille','Nice','Rennes','Lens','Strasbourg','Nantes','Montpellier','Reims','Brest','Toulouse','Metz','Lorient','Auxerre','Le Havre','Angers','Saint-Etienne']
+    };
+
+    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+    const rand = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+    const choice = arr => arr[Math.floor(Math.random()*arr.length)];
+
+    class Player {
+      constructor(data={}) {
+        this.name = data.name || 'New Talent';
+        this.position = data.position || 'ST';
+        this.nationality = data.nationality || 'England';
+        this.age = data.age || 17;
+        this.club = data.club || 'Arsenal';
+        this.contractYears = data.contractYears || 4;
+        this.salary = data.salary || 30000;
+        this.morale = data.morale ?? 70;
+        this.managerTrust = data.managerTrust ?? 65;
+        this.mediaRep = data.mediaRep ?? 50;
+        this.injury = data.injury || null;
+        this.fatigue = data.fatigue ?? 0;
+        this.devPoints = data.devPoints ?? 8;
+        this.stats = data.stats || {apps:0, goals:0, assists:0, avgRating:0, shots:0, cleanSheets:0, trophies:0, europeanGoals:0, hatTricks:0, streak:0, bestStreak:0};
+        this.season = data.season || {goals:0, assists:0, ratings:[], shots:0, cleanSheets:0, mins:0};
+        this.careerAwards = data.careerAwards || {ballonDor:0, goldenBoots:0, goldenGloves:0, euroPlayer:0};
+        this.attributes = data.attributes || Player.defaultAttributes(this.position);
+        this.overall = data.overall || this.calculateOverall();
+      }
+      static defaultAttributes(pos) {
+        const base = {pace:60,shooting:60,passing:60,dribbling:60,defending:45,physical:60,diving:45,handling:45,reflexes:45,positioning:45,kicking:45};
+        if (pos==='GK') return {...base, diving:67,handling:66,reflexes:68,positioning:65,kicking:63,physical:62, pace:30,shooting:25,passing:45,dribbling:30,defending:25};
+        if (['CB','LB','RB'].includes(pos)) return {...base, defending:66, physical:67, pace:62, shooting:42};
+        if (['CM','CDM','CAM'].includes(pos)) return {...base, passing:67, dribbling:66, pace:63, defending:58};
+        return {...base, shooting:68, pace:67, dribbling:66, physical:64, defending:35};
+      }
+      calculateOverall() {
+        const a = this.attributes;
+        let ovr = 0;
+        const w = {
+          ST:{shooting:.35,pace:.2,dribbling:.2,physical:.15,passing:.05,defending:.05},
+          RW:{shooting:.25,pace:.25,dribbling:.25,passing:.15,physical:.08,defending:.02},
+          LW:{shooting:.25,pace:.25,dribbling:.25,passing:.15,physical:.08,defending:.02},
+          CAM:{passing:.3,dribbling:.25,shooting:.18,pace:.12,physical:.08,defending:.07},
+          CM:{passing:.32,dribbling:.18,defending:.16,physical:.14,pace:.1,shooting:.1},
+          CDM:{defending:.35,passing:.22,physical:.2,dribbling:.08,pace:.08,shooting:.07},
+          CB:{defending:.4,physical:.28,pace:.15,passing:.08,dribbling:.04,shooting:.05},
+          LB:{defending:.32,pace:.23,passing:.17,dribbling:.12,physical:.11,shooting:.05},
+          RB:{defending:.32,pace:.23,passing:.17,dribbling:.12,physical:.11,shooting:.05},
+          GK:{diving:.24,handling:.2,reflexes:.24,positioning:.18,kicking:.08,physical:.06}
+        }[this.position] || {shooting:.25,pace:.2,dribbling:.2,passing:.15,physical:.15,defending:.05};
+        Object.keys(w).forEach(k=> ovr += (a[k]||0) * w[k]);
+        return Math.round(clamp(ovr,20,99));
+      }
+      attrCost(value) {
+        if (value < 50) return 1;
+        if (value < 70) return 2;
+        if (value < 85) return 3;
+        if (value < 95) return 5;
+        return 10;
+      }
+      improveAttribute(key) {
+        const v = this.attributes[key];
+        if (v >= 99) return false;
+        const cost = this.attrCost(v);
+        if (this.devPoints < cost) return false;
+        this.devPoints -= cost;
+        this.attributes[key] = clamp(v+1,20,99);
+        this.overall = this.calculateOverall();
+        return true;
+      }
+      addMatch(rating, goals, assists, shots, cleanSheet=false, mins=90, inEurope=false) {
+        this.stats.apps++;
+        this.stats.goals += goals;
+        this.stats.assists += assists;
+        this.stats.shots += shots;
+        if (cleanSheet && this.position==='GK') this.stats.cleanSheets++;
+        if (goals>=3) this.stats.hatTricks++;
+        this.stats.streak = goals>0 ? this.stats.streak+1 : 0;
+        this.stats.bestStreak = Math.max(this.stats.bestStreak, this.stats.streak);
+        this.stats.avgRating = ((this.stats.avgRating*(this.stats.apps-1))+rating)/this.stats.apps;
+        this.season.goals += goals;
+        this.season.assists += assists;
+        this.season.shots += shots;
+        this.season.ratings.push(rating);
+        this.season.mins += mins;
+        if (inEurope) this.stats.europeanGoals += goals;
+      }
+      applyAgeCurve() {
+        const decline = this.age >= 33;
+        if (this.age <= 24) this.devPoints += 6;
+        else if (this.age <= 28) this.devPoints += 3;
+        else if (this.age <= 32) this.devPoints += 1;
+        else this.devPoints += 0;
+        if (decline) {
+          this.attributes.physical = clamp(this.attributes.physical - rand(1,2),20,99);
+          this.attributes.pace = clamp(this.attributes.pace - rand(1,3),20,99);
+        }
+        this.overall = this.calculateOverall();
+      }
+      legacyScore() {
+        const s = this.stats;
+        const score = s.goals*1.2 + s.assists + s.trophies*15 + this.careerAwards.ballonDor*25 + this.stats.europeanGoals*1.5 + this.stats.apps*.3 + this.overall;
+        return Math.round(score);
+      }
+      goatTier() {
+        const L = this.legacyScore();
+        if (L > 1600) return 'Football Immortal';
+        if (L > 1300) return 'GOAT Candidate';
+        if (L > 1000) return 'All-Time Great';
+        if (L > 800) return 'Global Superstar';
+        if (L > 600) return 'European Great';
+        if (L > 450) return 'National Icon';
+        return 'Club Legend';
+      }
+    }
+
+    class Club {
+      constructor(name, league, rating=70) {
+        this.name = name;
+        this.league = league;
+        this.rating = rating;
+        this.points = 0; this.played=0; this.w=0; this.d=0; this.l=0; this.gf=0; this.ga=0;
+        this.cupOut = false;
+      }
+      get gd(){ return this.gf - this.ga; }
+      record(gf,ga){
+        this.played++; this.gf+=gf; this.ga+=ga;
+        if (gf>ga){ this.w++; this.points+=3; }
+        else if (gf===ga){ this.d++; this.points+=1; }
+        else this.l++;
+      }
+    }
+
+    class League {
+      constructor(name, teamNames) {
+        this.name = name;
+        this.clubs = teamNames.map((n,i)=>new Club(n,name,clamp(65 + (20-i/2)+rand(-7,7),55,92)));
+        this.schedule = this.generateRoundRobin();
+      }
+      generateRoundRobin() {
+        const teams = [...this.clubs];
+        if (teams.length % 2) teams.push(new Club('BYE', this.name, 1));
+        const n = teams.length;
+        const rounds = [];
+        let arr = teams.slice();
+        for (let r=0; r<n-1; r++) {
+          const fixtures = [];
+          for (let i=0; i<n/2; i++) {
+            const home = arr[i], away = arr[n-1-i];
+            if (home.name!=='BYE' && away.name!=='BYE') fixtures.push({home:home.name, away:away.name});
+          }
+          rounds.push(fixtures);
+          arr = [arr[0], arr[n-1], ...arr.slice(1,n-1)];
+        }
+        const reverse = rounds.map(rd=>rd.map(f=>({home:f.away, away:f.home})));
+        return [...rounds, ...reverse];
+      }
+      table() {
+        return [...this.clubs].sort((a,b)=>b.points-a.points || b.gd-a.gd || b.gf-a.gf);
+      }
+      clubByName(n){ return this.clubs.find(c=>c.name===n); }
+    }
+
+    class MatchEngine {
+      static simulateMatch(homeClub, awayClub, playerClubName, player, competition='League', important=false) {
+        const hStrength = homeClub.rating + 4;
+        const aStrength = awayClub.rating;
+        let hg = Math.max(0, Math.round((Math.random()*2.7) + (hStrength-aStrength)/24));
+        let ag = Math.max(0, Math.round((Math.random()*2.4) + (aStrength-hStrength)/28));
+
+        const involvesPlayer = homeClub.name===playerClubName || awayClub.name===playerClubName;
+        const commentary = [];
+        let pGoals=0, pAssists=0, pShots=0;
+        let rating = 6.0 + Math.random()*1.3;
+        const decisions = [];
+        const decisionPool = ['Shoot','Pass','Dribble','Cross','Hold possession','Press aggressively','Play safe','Argue with referee','Take penalty','Trust teammate'];
+
+        if (involvesPlayer && !player.injury) {
+          const big = important || ['Final','Derby','UCL','UEL','UECL'].some(x=>competition.includes(x));
+          const decisionCount = rand(big?7:3, big?15:9);
+          for (let i=0;i<decisionCount;i++) {
+            const d = choice(decisionPool);
+            let impact = (Math.random()*2)-.8;
+            if (d==='Shoot') {
+              pShots++;
+              if (Math.random() < (player.attributes.shooting/130)) { pGoals++; impact+=.8; }
+            }
+            if (d==='Pass' || d==='Trust teammate' || d==='Cross') {
+              if (Math.random() < (player.attributes.passing/165)) { pAssists++; impact += .45; }
+            }
+            if (d==='Dribble' && Math.random() < player.attributes.dribbling/150) impact += .4;
+            if (d==='Press aggressively') {
+              player.fatigue = clamp(player.fatigue + rand(6,10),0,100);
+              if (Math.random()<.08) player.managerTrust = clamp(player.managerTrust+1,0,100);
+              if (Math.random()<.07) MatchEngine.applyInjuryRisk(player, 1.5);
+            }
+            if (d==='Play safe') impact += .15;
+            if (d==='Argue with referee') { impact -= .6; player.mediaRep = clamp(player.mediaRep - 2,0,100); }
+            if (d==='Take penalty' && Math.random() < player.attributes.shooting/120) { pGoals++; impact += .9; }
+            rating += impact/5;
+            decisions.push({d, impact});
+            commentary.push(`Decision ${i+1}: ${d} (${impact>=0?'+':'-'}${Math.abs(impact).toFixed(2)} impact)`);
+          }
+
+          if (homeClub.name===playerClubName) hg += pGoals;
+          else ag += pGoals;
+
+          rating = clamp(rating + (pGoals*.7 + pAssists*.4), 3.5, 10);
+          player.managerTrust = clamp(player.managerTrust + Math.round((rating-6.5)*2),0,100);
+          player.mediaRep = clamp(player.mediaRep + Math.round((rating-6.2)*1.5),0,100);
+          player.morale = clamp(player.morale + Math.round((rating-6.3)*2),0,100);
+          MatchEngine.applyInjuryRisk(player, 1 + player.fatigue/120 + (decisionCount>10?.25:0));
+        }
+
+        return {home:homeClub.name,away:awayClub.name,hg,ag,commentary,pGoals,pAssists,pShots,rating:Math.round(rating*10)/10, decisions};
+      }
+      static applyInjuryRisk(player, mult=1) {
+        if (player.injury) return;
+        const risk = (0.02 + player.fatigue/1600) * mult;
+        if (Math.random() < risk) {
+          const roll = Math.random();
+          if (roll < .62) player.injury = {type:'Minor strain', weeks: rand(1,2)};
+          else if (roll < .92) player.injury = {type:'Ligament damage', weeks: rand(4,8)};
+          else player.injury = {type:'Severe ACL tear', weeks: rand(28,40)};
+          player.attributes.physical = clamp(player.attributes.physical-rand(1,3),20,99);
+          player.attributes.pace = clamp(player.attributes.pace-rand(1,3),20,99);
+          player.overall = player.calculateOverall();
+        }
+      }
+    }
+
+    class TransferMarket {
+      constructor(){ this.offers=[]; }
+      generateOffers(state) {
+        this.offers = [];
+        if (![1,7].includes(state.calendar.month)) return;
+        const p = state.player;
+        const score = p.season.goals*2 + p.season.assists + p.stats.avgRating*4 + p.mediaRep/10;
+        const num = Math.min(5, Math.max(1, Math.floor(score/18)));
+        for (let i=0;i<num;i++) {
+          const league = choice(LEAGUES);
+          const club = choice(TEAM_NAMES[league]);
+          const salary = Math.round((p.salary * (1.05 + Math.random()*0.6))/1000)*1000;
+          const fee = Math.round((p.overall*1200000 + score*180000 + rand(0,1500000))/1000000)*1000000;
+          this.offers.push({club,league,salary,fee,years:rand(3,5)});
+        }
+      }
+    }
+
+    class SeasonManager {
+      constructor(data={}) {
+        this.year = data.year || 2026;
+        this.leagues = (data.leagues||LEAGUES).map(l=>new League(l, TEAM_NAMES[l]));
+        this.calendar = data.calendar || {week:1, month:8, phase:'Pre-season'};
+        this.playerCompetition = data.playerCompetition || 'League';
+        this.records = data.records || {ballonDorHistory:[], hallOfFame:[], europeanWinners:[], allTimeLeagueTopScorer:{}, allTimeEuropeanTopScorer:{ucl:null,uel:null,uecl:null}};
+        this.awards = data.awards || {yearly:[]};
+      }
+      getLeagueByClub(club) { return this.leagues.find(l=>l.clubs.some(c=>c.name===club)); }
+      weekFixtures(league) { return league.schedule[this.calendar.week-1] || []; }
+      simulateWeek(player) {
+        const logs = [];
+        this.playerCompetition = this.calendar.week%9===0 ? 'Domestic Cup' : 'League';
+        if (this.calendar.week%12===0) this.playerCompetition = 'UCL Group';
+        if (this.calendar.week%16===0) this.playerCompetition = 'UEL Group';
+        if (this.calendar.week%20===0) this.playerCompetition = 'UECL Group';
+
+        let playerMatch = null;
+        this.leagues.forEach(l=>{
+          const fixtures = this.weekFixtures(l);
+          fixtures.forEach(f=>{
+            const h = l.clubByName(f.home), a = l.clubByName(f.away);
+            const important = ['Arsenal','Liverpool','Man City','Man United','Real Madrid','Barcelona','Inter','Milan','Juventus','Bayern','Dortmund','PSG'].includes(h.name)
+              && ['Arsenal','Liverpool','Man City','Man United','Real Madrid','Barcelona','Inter','Milan','Juventus','Bayern','Dortmund','PSG'].includes(a.name);
+            const result = MatchEngine.simulateMatch(h,a,player.club,player,this.playerCompetition,important);
+            h.record(result.hg,result.ag); a.record(result.ag,result.hg);
+            if (result.home===player.club || result.away===player.club) playerMatch = result;
+          });
+        });
+
+        if (playerMatch) {
+          const clean = (player.position==='GK' && ((playerMatch.home===player.club && playerMatch.ag===0) || (playerMatch.away===player.club && playerMatch.hg===0)));
+          player.addMatch(playerMatch.rating, playerMatch.pGoals, playerMatch.pAssists, playerMatch.pShots, clean, 90, this.playerCompetition.includes('U'));
+          player.devPoints += Math.max(0, Math.floor((playerMatch.rating-6)*2));
+          if (playerMatch.rating >= 9) player.devPoints += 2;
+          if (playerMatch.pGoals >= 3) { player.morale = clamp(player.morale+6,0,100); player.mediaRep = clamp(player.mediaRep+6,0,100); }
+          logs.push(...playerMatch.commentary);
+        } else {
+          logs.push('No player match this week. Light recovery training completed.');
+          player.fatigue = clamp(player.fatigue - 10,0,100);
+        }
+
+        if (player.injury) {
+          player.injury.weeks--;
+          if (player.injury.weeks<=0) { logs.push(`Injury recovery complete: ${player.injury.type}`); player.injury=null; }
+        }
+
+        player.fatigue = clamp(player.fatigue - rand(3,8),0,100);
+        this.calendar.week++;
+        if (this.calendar.week > 38) this.endSeason(player);
+        this.calendar.month = ((8 + Math.floor((this.calendar.week-1)/4)-1)%12)+1;
+        return {logs, playerMatch};
+      }
+      endSeason(player) {
+        const playerLeague = this.getLeagueByClub(player.club);
+        const table = playerLeague.table();
+        const pos = table.findIndex(c=>c.name===player.club)+1;
+        const qualified = pos<=4 ? 'UCL' : pos===5 ? 'UEL' : (pos===6||pos===7) ? 'UECL' : 'None';
+        const trophiesWon = [];
+        if (pos===1) { trophiesWon.push(`${playerLeague.name} Title`); player.stats.trophies++; }
+        if (Math.random() < .14) { trophiesWon.push('Domestic Cup'); player.stats.trophies++; }
+        if (Math.random() < .07 && qualified==='UCL') { trophiesWon.push('Champions League'); player.stats.trophies++; }
+        if (Math.random() < .06 && qualified==='UEL') { trophiesWon.push('Europa League'); player.stats.trophies++; }
+        if (Math.random() < .06 && qualified==='UECL') { trophiesWon.push('Conference League'); player.stats.trophies++; }
+        if (Math.random() < .04) { trophiesWon.push('UEFA Super Cup'); player.stats.trophies++; player.managerTrust = clamp(player.managerTrust+4,0,100); player.mediaRep = clamp(player.mediaRep+5,0,100); }
+
+        const avg = player.season.ratings.length ? player.season.ratings.reduce((a,b)=>a+b,0)/player.season.ratings.length : 6;
+        const ballonScore = player.season.goals*2.1 + player.season.assists*1.4 + avg*8 + trophiesWon.length*15 + player.mediaRep*.2 + player.stats.europeanGoals*1.2;
+        const top10 = Array.from({length:10},(_,i)=>({name: i===0?player.name:`AI Star ${i}`, score:Math.round((ballonScore-(i*rand(8,17))))})).sort((a,b)=>b.score-a.score);
+        const winner = top10[0].name;
+        if (winner===player.name) player.careerAwards.ballonDor++;
+        const goldenBoot = player.season.goals > rand(25,38);
+        if (goldenBoot) player.careerAwards.goldenBoots++;
+        if (player.position==='GK' && player.season.cleanSheets > rand(13,22)) player.careerAwards.goldenGloves++;
+
+        this.awards.yearly.push({
+          season: `${this.year}-${String(this.year+1).slice(-2)}`,
+          leaguePosition: pos,
+          europe: qualified,
+          trophiesWon,
+          ballonTop10: top10,
+          winner,
+          europeanGoldenBoot: player.season.goals + Math.floor(player.stats.europeanGoals*.3),
+          uclTopScorer: `AI Striker ${rand(8,21)} goals`,
+          uelTopScorer: `AI Forward ${rand(7,17)} goals`,
+          ueclTopScorer: `AI Talent ${rand(6,15)} goals`
+        });
+
+        player.age++;
+        player.applyAgeCurve();
+        player.season = {goals:0, assists:0, ratings:[], shots:0, cleanSheets:0, mins:0};
+        this.year++;
+        this.calendar = {week:1,month:8,phase:'Pre-season'};
+        this.leagues = LEAGUES.map(l=>new League(l, TEAM_NAMES[l]));
+      }
+    }
+
+    const game = {
+      mode:'custom',
+      player:null,
+      season:null,
+      market:new TransferMarket(),
+      init() {
+        this.bindSetup();
+        this.bindButtons();
+        this.load();
+      },
+      bindSetup() {
+        const setupFields = document.getElementById('setupFields');
+        const render = () => {
+          if (this.mode==='custom') {
+            setupFields.innerHTML = `
+              <div><label>Name</label><input id="inName" value="Alex Carter"></div>
+              <div><label>Position</label><select id="inPos">${POSITIONS.map(p=>`<option>${p}</option>`).join('')}</select></div>
+              <div><label>Nationality</label><input id="inNat" value="England"></div>
+              <div><label>Age (17-35)</label><input id="inAge" type="number" min="17" max="35" value="17"></div>
+              <div><label>Starting League</label><select id="inLeague">${LEAGUES.map(l=>`<option>${l}</option>`).join('')}</select></div>
+            `;
+          } else {
+            setupFields.innerHTML = `
+              <div><label>Known/Legend Player</label><select id="inKnown">${REAL_PLAYERS.map((p,i)=>`<option value="${i}">${p.name} (${p.legend?'Legend':'Current'})</option>`).join('')}</select></div>
+              <div><label>Career Start</label><select id="inStart"><option value="restart">Restart at 17</option><option value="continue">Continue 2026-27</option><option value="custom">Custom age</option></select></div>
+              <div><label>Custom Age</label><input id="inKnownAge" type="number" min="17" max="41" value="17"></div>
+              <div><label>Starting League</label><select id="inLeague">${LEAGUES.map(l=>`<option>${l}</option>`).join('')}</select></div>
+            `;
+          }
+        };
+        document.getElementById('modeCustom').onclick = ()=>{ this.mode='custom'; render(); };
+        document.getElementById('modeKnown').onclick = ()=>{ this.mode='known'; render(); };
+        render();
+        document.getElementById('startCareer').onclick = ()=>this.startCareer();
+      },
+      startCareer() {
+        let player;
+        const leagueName = document.getElementById('inLeague').value;
+        const firstClub = choice(TEAM_NAMES[leagueName]);
+        if (this.mode==='custom') {
+          player = new Player({
+            name: document.getElementById('inName').value.trim() || 'Unnamed',
+            position: document.getElementById('inPos').value,
+            nationality: document.getElementById('inNat').value.trim() || 'Unknown',
+            age: clamp(parseInt(document.getElementById('inAge').value||17),17,35),
+            club: firstClub
+          });
+        } else {
+          const k = REAL_PLAYERS[parseInt(document.getElementById('inKnown').value)];
+          const mode = document.getElementById('inStart').value;
+          let age = mode==='restart' ? 17 : (mode==='continue' ? k.age : clamp(parseInt(document.getElementById('inKnownAge').value||17),17,k.age));
+          player = new Player({name:k.name, position:k.position, nationality:k.nationality, age, club:firstClub});
+        }
+        this.player = player;
+        this.season = new SeasonManager();
+        this.switchScreen('gameScreen');
+        this.render();
+        this.save();
+      },
+      bindButtons() {
+        document.getElementById('playNextBtn').onclick = ()=>{
+          if (!this.player || !this.season) return;
+          const {logs, playerMatch} = this.season.simulateWeek(this.player);
+          this.market.generateOffers(this);
+          this.renderMatch(logs, playerMatch);
+          this.render();
+          this.save();
+        };
+        document.getElementById('trainBtn').onclick = ()=>{
+          const focus = choice(['shooting','pace','passing','dribbling','defending','physical','balanced']);
+          const keys = focus==='balanced'?['pace','shooting','passing','dribbling','defending','physical']:[focus];
+          keys.forEach(k=>{ if (Math.random()<0.8) this.player.attributes[k]=clamp(this.player.attributes[k]+1,20,99); });
+          this.player.devPoints += 1;
+          this.player.fatigue = clamp(this.player.fatigue + 8,0,100);
+          if (Math.random()<0.06) MatchEngine.applyInjuryRisk(this.player,1.2);
+          this.player.overall = this.player.calculateOverall();
+          this.renderMatch([`Training completed (${focus}). Small gains applied.`], null);
+          this.render();
+          this.save();
+        };
+        document.getElementById('devBtn').onclick = ()=>{ this.switchScreen('devScreen'); this.renderDev(); };
+        document.getElementById('closeDev').onclick = ()=>{ this.switchScreen('gameScreen'); this.render(); };
+        document.getElementById('transferBtn').onclick = ()=>{ this.switchScreen('transferScreen'); this.renderTransfers(); };
+        document.getElementById('closeTransfer').onclick = ()=>{ this.switchScreen('gameScreen'); this.render(); };
+        document.getElementById('awardsBtn').onclick = ()=>{ this.switchScreen('awardsScreen'); this.renderAwards(); };
+        document.getElementById('closeAwards').onclick = ()=>{ this.switchScreen('gameScreen'); this.render(); };
+        document.getElementById('saveBtn').onclick = ()=>this.save();
+        document.getElementById('newCareerBtn').onclick = ()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); };
+      },
+      renderMatch(logs, playerMatch) {
+        const c = document.getElementById('commentary');
+        c.innerHTML = logs.map(l=>`<div>${l}</div>`).join('') || '<div>No live events yet.</div>';
+        c.scrollTop = c.scrollHeight;
+        if (playerMatch) {
+          document.getElementById('fixtureLabel').textContent = `${playerMatch.home} vs ${playerMatch.away} (${this.season.playerCompetition})`;
+          document.getElementById('scoreLabel').textContent = `${playerMatch.hg} - ${playerMatch.ag}`;
+          const result = (playerMatch.home===this.player.club ? (playerMatch.hg-playerMatch.ag) : (playerMatch.ag-playerMatch.hg));
+          const reaction = result>0?'Manager: Outstanding contribution.':'Manager: We need more next game.';
+          const headline = playerMatch.pGoals>1?`${this.player.name} steals the headlines!`:`${this.player.name} receives a ${playerMatch.rating} rating.`;
+          document.getElementById('matchSummary').innerHTML = `Rating: <b>${playerMatch.rating}</b> | Goals: <b>${playerMatch.pGoals}</b> | Assists: <b>${playerMatch.pAssists}</b> | Shots: <b>${playerMatch.pShots}</b><br>${reaction}<br><span class="gold">Media:</span> ${headline}`;
+        }
+      },
+      render() {
+        if (!this.player || !this.season) return;
+        document.getElementById('seasonLabel').textContent = `Season ${this.season.year}-${String(this.season.year+1).slice(-2)} • Week ${this.season.calendar.week}`;
+        document.getElementById('pName').textContent = this.player.name;
+        document.getElementById('pOvr').textContent = this.player.overall;
+        document.getElementById('pAgePos').textContent = `${this.player.age} / ${this.player.position}`;
+        document.getElementById('pClub').textContent = this.player.club;
+        document.getElementById('trustPill').textContent = `Trust ${this.player.managerTrust}`;
+        document.getElementById('mediaPill').textContent = `Media ${this.player.mediaRep}`;
+        document.getElementById('moralePill').textContent = `Morale ${this.player.morale}`;
+        document.getElementById('injuryPill').textContent = this.player.injury ? `${this.player.injury.type} (${this.player.injury.weeks}w)` : 'Fit';
+
+        const league = this.season.getLeagueByClub(this.player.club) || this.season.leagues[0];
+        document.getElementById('calendarInfo').textContent = `Current Competition: ${this.season.playerCompetition} • Transfer windows: Jan & Jul • Intl break light simulation included`;
+        const table = league.table();
+        document.getElementById('tableWrap').innerHTML = `<table><thead><tr><th>#</th><th>Club</th><th>P</th><th>Pts</th><th>GD</th></tr></thead><tbody>${table.map((c,i)=>`<tr ${c.name===this.player.club?'style="color:#4cc9f0;font-weight:700;"':''}><td>${i+1}</td><td>${c.name}</td><td>${c.played}</td><td>${c.points}</td><td>${c.gd}</td></tr>`).join('')}</tbody></table>`;
+
+        const s = this.player.stats;
+        document.getElementById('statsCards').innerHTML = `
+          <div class="card"><div class="subtle">Apps</div><div class="big">${s.apps}</div></div>
+          <div class="card"><div class="subtle">Goals / Assists</div><div class="big">${s.goals}/${s.assists}</div></div>
+          <div class="card"><div class="subtle">Avg Rating</div><div class="big">${s.avgRating.toFixed(2)}</div></div>
+          <div class="card"><div class="subtle">Trophies</div><div class="big">${s.trophies}</div></div>
+        `;
+      },
+      renderDev() {
+        document.getElementById('devOvr').textContent = this.player.overall;
+        document.getElementById('devPts').textContent = this.player.devPoints;
+        const attrs = this.player.position==='GK' ? ['diving','handling','reflexes','positioning','kicking','physical'] : ['pace','shooting','passing','dribbling','defending','physical'];
+        document.getElementById('attrList').innerHTML = attrs.map(k=>{
+          const v = this.player.attributes[k];
+          const cost = this.player.attrCost(v);
+          return `<div class="attr-grid"><div><div style="text-transform:capitalize;">${k}</div><div class="bar"><i style="width:${v}%;"></i></div></div><div>${v}</div><button data-attr="${k}">+1 (${cost})</button></div>`;
+        }).join('');
+        document.querySelectorAll('[data-attr]').forEach(b=>b.onclick=()=>{ this.player.improveAttribute(b.dataset.attr); this.renderDev(); this.save(); });
+      },
+      renderTransfers() {
+        const t = document.getElementById('transferList');
+        if (!this.market.offers.length) {
+          t.innerHTML = `<div>No active offers. Major windows are January and July.</div>`;
+          return;
+        }
+        t.innerHTML = `<table><thead><tr><th>Club</th><th>League</th><th>Fee</th><th>Salary</th><th>Years</th><th>Action</th></tr></thead><tbody>${this.market.offers.map((o,i)=>`<tr><td>${o.club}</td><td>${o.league}</td><td>€${o.fee.toLocaleString()}</td><td>€${o.salary.toLocaleString()}/w</td><td>${o.years}</td><td><button data-a="${i}" class="primary">Accept</button><button data-r="${i}" class="danger">Reject</button><button data-n="${i}">Negotiate</button></td></tr>`).join('')}</tbody></table>`;
+        t.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+          const o = this.market.offers[+b.dataset.a];
+          this.player.club=o.club; this.player.salary=o.salary; this.player.contractYears=o.years; this.player.managerTrust=60;
+          this.renderMatch([`Transfer accepted: joined ${o.club} (${o.league}).`], null);
+          this.market.offers=[]; this.switchScreen('gameScreen'); this.render(); this.save();
+        });
+        t.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{ this.market.offers.splice(+b.dataset.r,1); this.renderTransfers(); this.save(); });
+        t.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{
+          const o = this.market.offers[+b.dataset.n]; o.salary = Math.round(o.salary*1.12/1000)*1000;
+          this.renderTransfers(); this.save();
+        });
+      },
+      renderAwards() {
+        const a = this.season.awards.yearly;
+        const last = a[a.length-1];
+        const body = document.getElementById('awardsBody');
+        body.innerHTML = `
+          <h4>Legacy</h4>
+          <p>Legacy Score: <b>${this.player.legacyScore()}</b> • Tier: <b>${this.player.goatTier()}</b></p>
+          <p>Ballon d'Or Wins: ${this.player.careerAwards.ballonDor} • Golden Boots: ${this.player.careerAwards.goldenBoots} • Golden Gloves: ${this.player.careerAwards.goldenGloves}</p>
+          <h4>Latest Season Awards</h4>
+          ${last ? `<p>${last.season} • League Pos: ${last.leaguePosition} • Europe: ${last.europe}</p>
+            <p>Trophies: ${last.trophiesWon.join(', ') || 'None'}</p>
+            <p>UCL Top Scorer: ${last.uclTopScorer} | UEL: ${last.uelTopScorer} | UECL: ${last.ueclTopScorer}</p>
+            <p>European Golden Boot Index: ${last.europeanGoldenBoot}</p>
+            <p>Ballon d'Or Top 10:</p>
+            <ol>${last.ballonTop10.map(p=>`<li>${p.name} (${p.score})</li>`).join('')}</ol>` : '<p>No completed seasons yet.</p>'}
+          <h4>Hall of Fame (Retired)</h4>
+          <p>${(this.season.records.hallOfFame||[]).length ? this.season.records.hallOfFame.map(h=>`${h.name} (${h.legacy})`).join(', ') : 'No retired legends recorded yet.'}</p>
+        `;
+      },
+      switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+      },
+      save() {
+        if (!this.player || !this.season) return;
+        const data = {
+          mode:this.mode,
+          player:this.player,
+          season:{
+            year:this.season.year,
+            leagues:LEAGUES,
+            calendar:this.season.calendar,
+            playerCompetition:this.season.playerCompetition,
+            records:this.season.records,
+            awards:this.season.awards
+          },
+          offers:this.market.offers
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        document.getElementById('autosaveStatus').textContent = `Auto-saved ${new Date().toLocaleTimeString()}`;
+      },
+      load() {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          this.mode = data.mode || 'custom';
+          this.player = new Player(data.player);
+          this.season = new SeasonManager(data.season);
+          this.market = new TransferMarket();
+          this.market.offers = data.offers || [];
+          this.switchScreen('gameScreen');
+          this.render();
+        } catch(e) { console.error(e); }
+      }
+    };
+
+    game.init();
+  </script>
+</body>
+</html>
